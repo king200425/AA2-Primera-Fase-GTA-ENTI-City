@@ -8,10 +8,12 @@
 #include "ConsoleUtils.h"
 #include "GameMap.h"
 #include"Pedestrian.h"
+#include"GameState.h"
 
 using std::endl;
 using std::cout;
 using std::ifstream;
+
 
 int main() {
     srand((unsigned int)time(NULL));
@@ -83,6 +85,8 @@ int main() {
 
     int viewWidth = 15;
     int viewHeight = 15;
+
+	GameState currentState = GameState::MENU;
     bool isGameRunning = true;
 
     system("cls"); // Clear screen once before loop
@@ -92,98 +96,110 @@ int main() {
         // 1. INPUT
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) isGameRunning = false;
 
-        int nextX = cj.x;
-        int nextY = cj.y;
+        if (currentState == GameState::MENU) {
+            DrawMainMenu();
 
-        if (GetAsyncKeyState(VK_UP) & 0x8000) { nextY--; cj.symbol = '^'; }
-        else if (GetAsyncKeyState(VK_DOWN) & 0x8000) { nextY++; cj.symbol = 'v'; }
-        else if (GetAsyncKeyState(VK_LEFT) & 0x8000) { nextX--; cj.symbol = '<'; }
-        else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) { nextX++; cj.symbol = '>'; }
-
-        if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-            for (int i = 0; i < totalPeds; ++i) {
-                if (!PedsArray[i].isDead && abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
-                    PedsArray[i].isDead = true;
-                    PedsArray[i].symbol = '$';
-                    worldMap.grid[PedsArray[i].y][PedsArray[i].x] = '$';
-                }
+            if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+                currentState = GameState::PLAYING;
+                system("cls"); // Debounce Enter key
             }
+            Sleep(100); // Skip rest of loop until game starts
         }
+        else if (currentState == GameState::PLAYING) {
 
-        char nextTile = worldMap.grid[nextY][nextX];
+            int nextX = cj.x;
+            int nextY = cj.y;
 
-        if (nextTile != 'X' && nextTile != 'P') {
-            cj.x = nextX;
-            cj.y = nextY;
+            if (GetAsyncKeyState(VK_UP) & 0x8000) { nextY--; cj.symbol = '^'; }
+            else if (GetAsyncKeyState(VK_DOWN) & 0x8000) { nextY++; cj.symbol = 'v'; }
+            else if (GetAsyncKeyState(VK_LEFT) & 0x8000) { nextX--; cj.symbol = '<'; }
+            else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) { nextX++; cj.symbol = '>'; }
 
-            if (nextTile == '$') {
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
                 for (int i = 0; i < totalPeds; ++i) {
-                    if (PedsArray[i].isDead && PedsArray[i].x == cj.x && PedsArray[i].y == cj.y) {
-                        int earned = 1 + rand() % PedsArray[i].maxMoneyDrop;
-                        cj.money += earned;
+                    if (!PedsArray[i].isDead && abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
+                        PedsArray[i].isDead = true;
+                        PedsArray[i].symbol = '$';
+                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = '$';
+                    }
+                }
+            }
 
-                        worldMap.grid[cj.y][cj.x] = ' ';
+            char nextTile = worldMap.grid[nextY][nextX];
 
-                        PedsArray[i].isDead = false;
-                        PedsArray[i].symbol = 'P';
-                        bool validPosition = false;
-                        while (!validPosition) {
-                            PedsArray[i].x = PedsArray[i].islandMinX + rand() % (PedsArray[i].islandMaxX - PedsArray[i].islandMinX + 1);
-                            PedsArray[i].y = 1 + rand() % (mapHeight - 2);
-                            if (worldMap.grid[PedsArray[i].y][PedsArray[i].x] == ' ' && !(PedsArray[i].x == cj.x && PedsArray[i].y == cj.y)) {
-                                validPosition = true;
+            if (nextTile != 'X' && nextTile != 'P') {
+                cj.x = nextX;
+                cj.y = nextY;
+
+                if (nextTile == '$') {
+                    for (int i = 0; i < totalPeds; ++i) {
+                        if (PedsArray[i].isDead && PedsArray[i].x == cj.x && PedsArray[i].y == cj.y) {
+                            int earned = 1 + rand() % PedsArray[i].maxMoneyDrop;
+                            cj.money += earned;
+
+                            worldMap.grid[cj.y][cj.x] = ' ';
+
+                            PedsArray[i].isDead = false;
+                            PedsArray[i].symbol = 'P';
+                            bool validPosition = false;
+                            while (!validPosition) {
+                                PedsArray[i].x = PedsArray[i].islandMinX + rand() % (PedsArray[i].islandMaxX - PedsArray[i].islandMinX + 1);
+                                PedsArray[i].y = 1 + rand() % (mapHeight - 2);
+                                if (worldMap.grid[PedsArray[i].y][PedsArray[i].x] == ' ' && !(PedsArray[i].x == cj.x && PedsArray[i].y == cj.y)) {
+                                    validPosition = true;
+                                }
                             }
+
+                            worldMap.grid[PedsArray[i].y][PedsArray[i].x] = PedsArray[i].symbol;
                         }
-
-                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = PedsArray[i].symbol;
                     }
                 }
             }
-        }
 
-        for (int i = 0; i < totalPeds; ++i) {
-            if (PedsArray[i].isDead) continue;
+            for (int i = 0; i < totalPeds; ++i) {
+                if (PedsArray[i].isDead) continue;
 
-            if (abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
-                continue;
-            }
+                if (abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
+                    continue;
+                }
 
-            if (rand() % 100 < 10) {
-                int dir = rand() % 4;
-                int nextPx = PedsArray[i].x;
-                int nextPy = PedsArray[i].y;
+                if (rand() % 100 < 10) {
+                    int dir = rand() % 4;
+                    int nextPx = PedsArray[i].x;
+                    int nextPy = PedsArray[i].y;
 
-                if (dir == 0) nextPy--;
-                else if (dir == 1) nextPy++;
-                else if (dir == 2) nextPx--;
-                else if (dir == 3) nextPx++;
+                    if (dir == 0) nextPy--;
+                    else if (dir == 1) nextPy++;
+                    else if (dir == 2) nextPx--;
+                    else if (dir == 3) nextPx++;
 
-                if (nextPx >= PedsArray[i].islandMinX && nextPx <= PedsArray[i].islandMaxX) {
-                    if (worldMap.grid[nextPy][nextPx] == ' ') {
-                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = ' ';
-                        PedsArray[i].x = nextPx;
-                        PedsArray[i].y = nextPy;
-                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = 'P';
+                    if (nextPx >= PedsArray[i].islandMinX && nextPx <= PedsArray[i].islandMaxX) {
+                        if (worldMap.grid[nextPy][nextPx] == ' ') {
+                            worldMap.grid[PedsArray[i].y][PedsArray[i].x] = ' ';
+                            PedsArray[i].x = nextPx;
+                            PedsArray[i].y = nextPy;
+                            worldMap.grid[PedsArray[i].y][PedsArray[i].x] = 'P';
+                        }
                     }
                 }
             }
+
+
+            // 3. RENDER 
+            SetCursorPosition(0, 0);
+            cout << "--- GTA: ENTI City Starting ---" << endl;
+            cout << "Money / Dinero: $" << cj.money << "       " << endl;
+            cout << "-------------------------------" << endl;
+
+            worldMap.Render(cj, viewWidth, viewHeight);
+
+            cout << "-------------------------------" << endl;
+
+            // 4. FRAME RATE 
+            Sleep(60);
         }
 
-
-        // 3. RENDER 
-        SetCursorPosition(0, 0);
-        cout << "--- GTA: ENTI City Starting ---" << endl;
-        cout << "Money / Dinero: $" << cj.money << "       " << endl;
-        cout << "-------------------------------" << endl;
-
-        worldMap.Render(cj, viewWidth, viewHeight);
-
-        cout << "-------------------------------" << endl;
-
-        // 4. FRAME RATE 
-        Sleep(60);
     }
-
     // Cleanup
     system("cls");
 

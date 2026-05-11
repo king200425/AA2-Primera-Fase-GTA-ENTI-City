@@ -130,6 +130,7 @@
   <ItemGroup>
     <ClInclude Include="ConsoleUtils.h" />
     <ClInclude Include="GameMap.h" />
+    <ClInclude Include="GameState.h" />
     <ClInclude Include="Pedestrian.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>
