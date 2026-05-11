@@ -45,25 +45,41 @@ int main() {
     cj.symbol = '>';
     cj.money = 0;
 
-    Pedestrian* lsPedsArray = new Pedestrian[lsPedestrians];
+	int totalPeds = lsPedestrians + sfPedestrians;
+	Pedestrian* PedsArray = new Pedestrian[totalPeds];
 
-    int lsMaxX = mapWidth / 3 - 1;
+	int lsMinX = 1;
+	int lsMaxX = mapWidth / 3 - 1;
+	int sfMinX = mapWidth / 3 + 1;
+	int sfMaxX = (mapWidth * 2) / 3 - 1;
 
-    for (int i = 0; i < lsPedestrians; ++i) {
-        lsPedsArray[i].symbol = 'P';
-        lsPedsArray[i].isDead = false;
+    for (int i = 0; i < totalPeds; ++i) {
+        PedsArray[i].symbol = 'P';
+        PedsArray[i].isDead = false;
+
+        if (i < lsPedestrians) {
+            PedsArray[i].islandMinX = lsMinX;
+            PedsArray[i].islandMaxX = lsMaxX;
+            PedsArray[i].maxMoneyDrop = lsMaxMoney;
+        }
+        else {
+            PedsArray[i].islandMinX = sfMinX;
+            PedsArray[i].islandMaxX = sfMaxX;
+            PedsArray[i].maxMoneyDrop = sfMaxMoney;
+        }
 
         bool validPosition = false;
         while (!validPosition) {
-            lsPedsArray[i].x = 1 + rand() % lsMaxX;
-            lsPedsArray[i].y = 1 + rand() % (mapHeight - 2);
+            PedsArray[i].x = (i < lsPedestrians) ? (lsMinX + rand() % (lsMaxX - lsMinX + 1)) : (sfMinX + rand() % (sfMaxX - sfMinX + 1));
+            PedsArray[i].y = 1 + rand() % (mapHeight - 2);
 
-            if (worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] == ' ' && !(lsPedsArray[i].x == cj.x && lsPedsArray[i].y == cj.y)) {
+            if (worldMap.grid[PedsArray[i].y][PedsArray[i].x] == ' ' && !(PedsArray[i].x == cj.x && PedsArray[i].y == cj.y)) {
                 validPosition = true;
             }
         }
-        worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] = lsPedsArray[i].symbol;
-    }
+		worldMap.grid[PedsArray[i].y][PedsArray[i].x] = PedsArray[i].symbol;
+	}
+
 
     int viewWidth = 15;
     int viewHeight = 15;
@@ -85,16 +101,15 @@ int main() {
         else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) { nextX++; cj.symbol = '>'; }
 
         if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-            for (int i = 0; i < lsPedestrians; ++i) {
-                // Check if pedestrian is alive and within 1 unit of the player
-                if (!lsPedsArray[i].isDead && abs(lsPedsArray[i].x - cj.x) <= 1 && abs(lsPedsArray[i].y - cj.y) <= 1) {
-                    lsPedsArray[i].isDead = true;  // Mark pedestrian as dead
-                    lsPedsArray[i].symbol = '$';  // Remove pedestrian symbol from map
-                    worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] = '$';
+            for (int i = 0; i < totalPeds; ++i) {
+                if (!PedsArray[i].isDead && abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
+                    PedsArray[i].isDead = true;
+                    PedsArray[i].symbol = '$';
+                    worldMap.grid[PedsArray[i].y][PedsArray[i].x] = '$';
                 }
             }
         }
-        // Check next tile for debugging
+
         char nextTile = worldMap.grid[nextY][nextX];
 
         if (nextTile != 'X' && nextTile != 'P') {
@@ -102,54 +117,54 @@ int main() {
             cj.y = nextY;
 
             if (nextTile == '$') {
-                for (int i = 0; i < lsPedestrians; ++i) {
-                    // Check if this pedestrian is the one we just killed
-                    if (lsPedsArray[i].isDead && lsPedsArray[i].x == cj.x && lsPedsArray[i].y == cj.y) {
-                        int earned = 1 + rand() % lsMaxMoney; // Earn between 1 and lsMaxMoney
+                for (int i = 0; i < totalPeds; ++i) {
+                    if (PedsArray[i].isDead && PedsArray[i].x == cj.x && PedsArray[i].y == cj.y) {
+                        int earned = 1 + rand() % PedsArray[i].maxMoneyDrop;
                         cj.money += earned;
 
-                        // Remove the corpse from the map
                         worldMap.grid[cj.y][cj.x] = ' ';
 
-                        lsPedsArray[i].isDead = false;
-                        lsPedsArray[i].symbol = 'P';
+                        PedsArray[i].isDead = false;
+                        PedsArray[i].symbol = 'P';
                         bool validPosition = false;
                         while (!validPosition) {
-                            lsPedsArray[i].x = 1 + rand() % lsMaxX;
-                            lsPedsArray[i].y = 1 + rand() % (mapHeight - 2);
-                            if (worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] == ' ' && !(lsPedsArray[i].x == cj.x && lsPedsArray[i].y == cj.y)) {
+                            PedsArray[i].x = PedsArray[i].islandMinX + rand() % (PedsArray[i].islandMaxX - PedsArray[i].islandMinX + 1);
+                            PedsArray[i].y = 1 + rand() % (mapHeight - 2);
+                            if (worldMap.grid[PedsArray[i].y][PedsArray[i].x] == ' ' && !(PedsArray[i].x == cj.x && PedsArray[i].y == cj.y)) {
                                 validPosition = true;
                             }
                         }
 
-                        worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] = lsPedsArray[i].symbol; // Place new pedestrian on map
+                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = PedsArray[i].symbol;
                     }
                 }
             }
         }
 
-        for (int i = 0; i < lsPedestrians; ++i) {
-            if (!lsPedsArray[i].isDead) continue;
+        for (int i = 0; i < totalPeds; ++i) {
+            if (PedsArray[i].isDead) continue;
 
-            if (abs(lsPedsArray[i].x - cj.x) <= 1 && abs(lsPedsArray[i].y - cj.y) <= 1) {
+            if (abs(PedsArray[i].x - cj.x) <= 1 && abs(PedsArray[i].y - cj.y) <= 1) {
                 continue;
             }
 
             if (rand() % 100 < 10) {
                 int dir = rand() % 4;
-                int nextPx = lsPedsArray[i].x;
-                int nextPy = lsPedsArray[i].y;
+                int nextPx = PedsArray[i].x;
+                int nextPy = PedsArray[i].y;
 
                 if (dir == 0) nextPy--;
                 else if (dir == 1) nextPy++;
                 else if (dir == 2) nextPx--;
                 else if (dir == 3) nextPx++;
 
-                if (worldMap.grid[nextPy][nextPx] == ' ') {
-                    worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] = ' ';
-                    lsPedsArray[i].x = nextPx;
-                    lsPedsArray[i].y = nextPy;
-                    worldMap.grid[lsPedsArray[i].y][lsPedsArray[i].x] = 'P';
+                if (nextPx >= PedsArray[i].islandMinX && nextPx <= PedsArray[i].islandMaxX) {
+                    if (worldMap.grid[nextPy][nextPx] == ' ') {
+                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = ' ';
+                        PedsArray[i].x = nextPx;
+                        PedsArray[i].y = nextPy;
+                        worldMap.grid[PedsArray[i].y][PedsArray[i].x] = 'P';
+                    }
                 }
             }
         }
@@ -158,7 +173,7 @@ int main() {
         // 3. RENDER 
         SetCursorPosition(0, 0);
         cout << "--- GTA: ENTI City Starting ---" << endl;
-        cout << "Money / Dinero: $" << cj.money << "      " << endl;
+        cout << "Money / Dinero: $" << cj.money << "       " << endl;
         cout << "-------------------------------" << endl;
 
         worldMap.Render(cj, viewWidth, viewHeight);
@@ -172,9 +187,10 @@ int main() {
     // Cleanup
     system("cls");
 
-    delete[] lsPedsArray;
+    delete[] PedsArray;
 
     worldMap.Destroy();
     cout << "\n[System] Exiting game... / Saliendo del juego..." << endl;
     cout << "[System] Memory cleaned successfully! No leaks!" << endl;
+
 }

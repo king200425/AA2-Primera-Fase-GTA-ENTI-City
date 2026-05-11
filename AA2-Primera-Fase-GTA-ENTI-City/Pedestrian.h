@@ -5,4 +5,8 @@ struct Pedestrian {
 	int y;
 	char symbol;
 	bool isDead;
+
+	int maxMoneyDrop;
+	int islandMinX;
+	int islandMaxX;
 };
