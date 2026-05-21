@@ -95,21 +95,75 @@ bool Game::LoadConfigAndInit() {
 
     viewWidth = 15;
     viewHeight = 15;
-    currentState = GameState::MENU;
+    currentState = GameState::INIT;
+    timerCount = 0;
     isGameRunning = true;
 
     return true;
 }
 
-// Process main menu input
-void Game::ProcessMenu() {
-    DrawMainMenu();
-    if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-        currentState = GameState::PLAYING;
+// Process initial loading screen
+void Game::ProcessInit() {
+	SetCursorPosition(0, 0);
+    cout << "========================================" << endl;
+    cout << "      GRAND THEFT AUTO: ENTI CITY      " << endl;
+    cout << "========================================" << endl;
+    cout << "\n\n      Loading game assets...          " << endl;
+    cout << "      Please wait for a moment...     " << endl;
+    cout << "\n========================================" << endl;
+
+    timerCount++;
+    if (timerCount >= 50){
+        currentState = GameState::MENU;
+		timerCount = 0;// Clear the screen before showing the menu
         system("cls");
     }
-    Sleep(100);
+    Sleep(60);
 }
+
+// Process main menu input
+void Game::ProcessMenu() {
+    SetCursorPosition(0, 0);
+    cout << "========================================" << endl;
+    cout << "               MAIN MENU                " << endl;
+    cout << "========================================" << endl;
+    cout << "\n      Use UP/DOWN arrows to select:\n" << endl;
+
+    if (menuSelection != 0 && menuSelection != 1) {
+        menuSelection = 0;
+    }
+
+    if (menuSelection == 0) {
+        cout << "   --> [ PLAY GAME ] <--" << endl;
+        cout << "       [   EXIT    ]    " << endl;
+    }
+    else {
+        cout << "       [ PLAY GAME ]    " << endl;
+        cout << "   --> [   EXIT    ] <--" << endl;
+    }
+    cout << "\n========================================" << endl;
+
+    if (GetAsyncKeyState(VK_UP) & 0x8000) {
+        menuSelection = 0;
+        Sleep(150);
+    }
+    else if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+        menuSelection = 1;
+        Sleep(150);
+    }
+
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+        if (menuSelection == 0) {
+            currentState = GameState::PLAYING;
+        }
+        else {
+			isGameRunning = false;// Exit the game loop to quit
+        }
+        system("cls");
+        Sleep(200);
+    }
+}
+
 
 // Process player input and game logic while playing
 void Game::ProcessPlaying() {
@@ -138,10 +192,17 @@ void Game::ProcessPlaying() {
 
     if (nextTile == 'T') {
         int tollToPay = (nextX == mapWidth / 3) ? lsToll : sfToll;
+
         if (cj.money >= tollToPay) {
             cj.money -= tollToPay;
             worldMap.grid[nextY][nextX] = ' ';
             nextTile = ' ';
+        }
+        else {
+            currentState = GameState::GAME_OVER;
+            timerCount = 0;
+            system("cls");
+            return;
         }
     }
 
@@ -171,6 +232,14 @@ void Game::ProcessPlaying() {
             }
         }
     }
+
+    SetCursorPosition(0, 0);
+    cout << "--- GTA: ENTI City Playing ---" << endl;
+    cout << "HP: " << cj.health << " | Money: $" << cj.money << " | Toll 1: $" << lsToll << "    " << endl;
+    cout << "-------------------------------" << endl;
+    worldMap.Render(cj, viewWidth, viewHeight);
+    cout << "-------------------------------" << endl;
+    Sleep(60);
 }
 
 // Update AI pedestrians' movement
@@ -202,27 +271,41 @@ void Game::UpdateAI() {
     }
 }
 
+// Process game over screen and auto-exit after a delay
+void Game::ProcessGameOver() {
+    SetCursorPosition(0, 0);
+    cout << "========================================" << endl;
+    cout << "               GAME OVER                " << endl;
+    cout << "========================================" << endl;
+    cout << "\n   [POLICE] You were arrested!        " << endl;
+    cout << "   Reason: Trying to cross toll without money! [cite: 186, 216]" << endl;
+    cout << "\n   The game will close automatically... " << endl;
+    cout << "========================================" << endl;
+
+    timerCount++;
+    if (timerCount >= 80) {
+        isGameRunning = false;
+    }
+    Sleep(60);
+}
 
 void Game::Run() {
     system("cls");
     while (isGameRunning) {
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) isGameRunning = false;
 
-        if (currentState == GameState::MENU) {
+        if (currentState == GameState::INIT) {
+            ProcessInit();
+        }
+        else if (currentState == GameState::MENU) {
             ProcessMenu();
         }
         else if (currentState == GameState::PLAYING) {
             ProcessPlaying();
             UpdateAI();
-
-            SetCursorPosition(0, 0);
-            cout << "--- GTA: ENTI City Playing ---" << endl;
-            // 顺便在顶部状态栏打印出 CJ 的当前初始血量，证明新配置表被完美读取了
-            cout << "HP: " << cj.health << " | Money: $" << cj.money << " | Toll 1: $" << lsToll << "    " << endl;
-            cout << "-------------------------------" << endl;
-            worldMap.Render(cj, viewWidth, viewHeight);
-            cout << "-------------------------------" << endl;
-            Sleep(60);
+        }
+        else if (currentState == GameState::GAME_OVER) {
+            ProcessGameOver();
         }
     }
 }

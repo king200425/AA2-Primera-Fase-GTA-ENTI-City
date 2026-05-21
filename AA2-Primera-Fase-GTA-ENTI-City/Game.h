@@ -13,6 +13,8 @@ struct Game {
 
 	int lsToll, sfToll, lsMaxMoney, sfMaxMoney;
 	int mapWidth, mapHeight;
+	int menuSelection;
+	int timerCount;
 
 	GameState currentState;
 	bool isGameRunning;
@@ -26,4 +28,6 @@ private:
 	void ProcessMenu();
 	void ProcessPlaying();
 	void UpdateAI();
+	void ProcessInit();
+	void ProcessGameOver();
 };
