@@ -5,4 +5,6 @@ struct Player {
 	int y;
 	char symbol;
 	int money;
+	int health;
+	int attack;
 };

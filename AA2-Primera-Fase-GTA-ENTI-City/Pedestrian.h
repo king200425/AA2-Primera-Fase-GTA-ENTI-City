@@ -9,4 +9,6 @@ struct Pedestrian {
 	int maxMoneyDrop;
 	int islandMinX;
 	int islandMaxX;
+	int health;
+	int attack;
 };

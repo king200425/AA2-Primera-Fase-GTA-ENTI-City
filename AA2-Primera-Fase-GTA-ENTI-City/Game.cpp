@@ -11,28 +11,48 @@ using std::cout;
 
 bool Game::LoadConfigAndInit() {
     std::ifstream configFile("config.txt");
-    int lsPedestrians, sfPedestrians;
+
+    int cjHealth = 0, cjAttack = 0;
+	int lsPedestrians = 0, lsPedHealth = 0, lsPedAttack = 0;
+	int sfPedestrians = 0, sfPedHealth = 0, sfPedAttack = 0;
+	int lvPedestrians = 0, lvPedMaxMoney = 0, lvPedHealth = 0, lvPedAttack = 0;
 
     if (configFile.is_open()) {
         char delimiter;
+		//Map dimensions
         configFile >> mapWidth >> delimiter >> mapHeight >> delimiter;
-        configFile >> lsPedestrians >> delimiter >> lsToll >> delimiter >> lsMaxMoney >> delimiter;
-        configFile >> sfPedestrians >> delimiter >> sfToll >> delimiter >> sfMaxMoney >> delimiter;
+        //Health
+        configFile >> cjHealth >> delimiter >> cjAttack >> delimiter;
+		//Toll costs
+		configFile >> lsToll >> delimiter >> sfToll >> delimiter;
+        //Los Santos
+        configFile >> lsPedestrians >> delimiter >> lsMaxMoney >> delimiter >> lsPedHealth >> delimiter >> lsPedAttack >> delimiter;
+        //San Fierro
+        configFile >> sfPedestrians >> delimiter >> sfMaxMoney >> delimiter >> sfPedHealth >> delimiter >> sfPedAttack >> delimiter;
+		//Las Venturas
+        configFile >> lvPedestrians >> delimiter >> lvPedMaxMoney >> delimiter >> lvPedHealth >> delimiter >> lvPedAttack >> delimiter;
+
         configFile.close();
     }
     else {
         return false;
     }
-
+	// Initialize game map and player
     worldMap.Initialize(mapWidth, mapHeight);
+
     worldMap.grid[mapHeight / 2][mapWidth / 3] = 'T';
     worldMap.grid[mapHeight / 2][(mapWidth * 2) / 3] = 'T';
 
+    //CJ
     cj.x = 5;
     cj.y = mapHeight / 2;
     cj.symbol = '>';
     cj.money = 0;
 
+	cj.health = cjHealth;
+	cj.attack = cjAttack;
+
+	// Initialize pedestrians
     totalPeds = lsPedestrians + sfPedestrians;
     pedsArray = new Pedestrian[totalPeds];
 
@@ -50,17 +70,22 @@ bool Game::LoadConfigAndInit() {
             pedsArray[i].islandMinX = lsMinX;
             pedsArray[i].islandMaxX = lsMaxX;
             pedsArray[i].maxMoneyDrop = lsMaxMoney;
+            pedsArray[i].health = lsPedHealth;
+			pedsArray[i].attack = lsPedAttack;
         }
         else {
             pedsArray[i].islandMinX = sfMinX;
             pedsArray[i].islandMaxX = sfMaxX;
             pedsArray[i].maxMoneyDrop = sfMaxMoney;
+			pedsArray[i].health = sfPedHealth;
+			pedsArray[i].attack = sfPedAttack;
         }
 
         bool validPosition = false;
         while (!validPosition) {
             pedsArray[i].x = (i < lsPedestrians) ? (lsMinX + rand() % (lsMaxX - lsMinX + 1)) : (sfMinX + rand() % (sfMaxX - sfMinX + 1));
             pedsArray[i].y = 1 + rand() % (mapHeight - 2);
+
             if (worldMap.grid[pedsArray[i].y][pedsArray[i].x] == ' ' && !(pedsArray[i].x == cj.x && pedsArray[i].y == cj.y)) {
                 validPosition = true;
             }
@@ -177,7 +202,7 @@ void Game::UpdateAI() {
     }
 }
 
-// Main game loop
+
 void Game::Run() {
     system("cls");
     while (isGameRunning) {
@@ -192,7 +217,8 @@ void Game::Run() {
 
             SetCursorPosition(0, 0);
             cout << "--- GTA: ENTI City Playing ---" << endl;
-            cout << "Money: $" << cj.money << " | Toll 1: $" << lsToll << " | Toll 2: $" << sfToll << "    " << endl;
+            // 顺便在顶部状态栏打印出 CJ 的当前初始血量，证明新配置表被完美读取了
+            cout << "HP: " << cj.health << " | Money: $" << cj.money << " | Toll 1: $" << lsToll << "    " << endl;
             cout << "-------------------------------" << endl;
             worldMap.Render(cj, viewWidth, viewHeight);
             cout << "-------------------------------" << endl;
