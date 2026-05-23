@@ -4,12 +4,19 @@
 #include"Pedestrian.h"
 #include"GameState.h"
 #include"ConsoleUtils.h"
+#include"Car.h"
 
 struct Game {
 	Player cj;
 	GameMap worldMap;
 	Pedestrian* pedsArray;
 	int totalPeds;
+
+	// Car
+	Car* carsArray;
+	int totalCars;
+	bool isDriving;
+	int currentCarIndex;
 
 	int lsToll, sfToll, lsMaxMoney, sfMaxMoney;
 	int mapWidth, mapHeight;

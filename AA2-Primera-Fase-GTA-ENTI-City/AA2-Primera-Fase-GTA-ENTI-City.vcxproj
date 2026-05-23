@@ -129,6 +129,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Car.h" />
     <ClInclude Include="ConsoleUtils.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameMap.h" />

@@ -39,7 +39,6 @@ bool Game::LoadConfigAndInit() {
     }
 	// Initialize game map and player
     worldMap.Initialize(mapWidth, mapHeight);
-
     worldMap.grid[mapHeight / 2][mapWidth / 3] = 'T';
     worldMap.grid[mapHeight / 2][(mapWidth * 2) / 3] = 'T';
 
@@ -48,7 +47,6 @@ bool Game::LoadConfigAndInit() {
     cj.y = mapHeight / 2;
     cj.symbol = '>';
     cj.money = 0;
-
 	cj.health = cjHealth;
 	cj.attack = cjAttack;
 
@@ -66,6 +64,7 @@ bool Game::LoadConfigAndInit() {
         pedsArray[i].symbol = 'P';
         pedsArray[i].isDead = false;
 
+        //Asignar diferentes atributos a los peatones según la isla
         if (i < lsPedestrians) {
             pedsArray[i].islandMinX = lsMinX;
             pedsArray[i].islandMaxX = lsMaxX;
@@ -81,6 +80,7 @@ bool Game::LoadConfigAndInit() {
 			pedsArray[i].attack = sfPedAttack;
         }
 
+		// Buscar una posición vacía y segura para generar el peatón
         bool validPosition = false;
         while (!validPosition) {
             pedsArray[i].x = (i < lsPedestrians) ? (lsMinX + rand() % (lsMaxX - lsMinX + 1)) : (sfMinX + rand() % (sfMaxX - sfMinX + 1));
@@ -93,16 +93,42 @@ bool Game::LoadConfigAndInit() {
         worldMap.grid[pedsArray[i].y][pedsArray[i].x] = pedsArray[i].symbol;
     }
 
+    //Cars
+    totalCars = 3;
+	carsArray = new Car[totalCars];
+
+	int islandMins[3] = { 1, mapWidth / 3 + 1, (mapWidth * 2) / 3 + 1 };
+	int islandMaxs[3] = { mapWidth / 3 - 1, (mapWidth * 2) / 3 - 1, mapWidth - 2 };
+
+    for (int i = 0; i < totalCars; ++i) {
+        carsArray[i].symbol = 'C';
+        bool valid = false;
+        while (!valid) {
+            carsArray[i].x = islandMins[i] + rand() % (islandMaxs[i] - islandMins[i] + 1);
+            carsArray[i].y = 1 + rand() % (mapHeight - 2);
+            if (worldMap.grid[carsArray[i].y][carsArray[i].x] == ' ' && !(carsArray[i].x == cj.x && carsArray[i].y == cj.y)) {
+                valid = true;
+            }
+        }
+        worldMap.grid[carsArray[i].y][carsArray[i].x] = carsArray[i].symbol;
+    }
+
+    //No mober cars
+	isDriving = false;
+	currentCarIndex = -1;
+
+	// Initialize other game variables
     viewWidth = 15;
     viewHeight = 15;
     currentState = GameState::INIT;
     timerCount = 0;
+	menuSelection = 0;
     isGameRunning = true;
 
     return true;
 }
 
-// Process initial loading screen
+// Procesar la lógica del menú principal
 void Game::ProcessInit() {
 	SetCursorPosition(0, 0);
     cout << "========================================" << endl;
@@ -167,17 +193,45 @@ void Game::ProcessMenu() {
 
 // Process player input and game logic while playing
 void Game::ProcessPlaying() {
+    if (GetAsyncKeyState('E') & 0x8000) {
+        if (!isDriving) {
+            for (int i = 0; i < totalCars; ++i) {
+                if (abs(carsArray[i].x - cj.x) <= 1 && abs(carsArray[i].y - cj.y) <= 1) {
+                    isDriving = true;
+                    currentCarIndex = i;
+                    cj.x = carsArray[i].x;
+                    cj.y = carsArray[i].y;
+                    cj.symbol = 'C';
+                    break;
+                }
+            }
+        }
+        else {
+            isDriving = false;
+            cj.symbol = '>';
+
+            if (worldMap.grid[cj.y][cj.x - 1] == ' ') { cj.x--; cj.symbol = '<'; }
+            else if (worldMap.grid[cj.y][cj.x + 1] == ' ') { cj.x++; cj.symbol = '>'; }
+            else if (worldMap.grid[cj.y - 1][cj.x] == ' ') { cj.y--; cj.symbol = '^'; }
+            else if (worldMap.grid[cj.y + 1][cj.x] == ' ') { cj.y++; cj.symbol = 'v'; }
+
+            currentCarIndex = -1;
+        }
+        Sleep(200);
+        return;
+    }
+
     int nextX = cj.x;
     int nextY = cj.y;
 
-    // Handle movement input
-    if (GetAsyncKeyState(VK_UP) & 0x8000) { nextY--; cj.symbol = '^'; }
-    else if (GetAsyncKeyState(VK_DOWN) & 0x8000) { nextY++; cj.symbol = 'v'; }
-    else if (GetAsyncKeyState(VK_LEFT) & 0x8000) { nextX--; cj.symbol = '<'; }
-    else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) { nextX++; cj.symbol = '>'; }
+	// Handle movement input
+    if (GetAsyncKeyState(VK_UP) & 0x8000) { nextY--; if (!isDriving) cj.symbol = '^'; }
+    else if (GetAsyncKeyState(VK_DOWN) & 0x8000) { nextY++; if (!isDriving) cj.symbol = 'v'; }
+    else if (GetAsyncKeyState(VK_LEFT) & 0x8000) { nextX--; if (!isDriving) cj.symbol = '<'; }
+    else if (GetAsyncKeyState(VK_RIGHT) & 0x8000) { nextX++; if (!isDriving) cj.symbol = '>'; }
 
     // Handle attack input
-    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+    if (!isDriving && (GetAsyncKeyState(VK_SPACE) & 0x8000)) {
         for (int i = 0; i < totalPeds; ++i) {
             if (!pedsArray[i].isDead && abs(pedsArray[i].x - cj.x) <= 1 && abs(pedsArray[i].y - cj.y) <= 1) {
                 pedsArray[i].isDead = true;
@@ -206,28 +260,39 @@ void Game::ProcessPlaying() {
         }
     }
 
-    // Move player if next tile is empty or has money
-    if (nextTile != 'X' && nextTile != 'P' && nextTile != 'T') {
-        cj.x = nextX;
-        cj.y = nextY;
+    if (isDriving) {
+        if (nextTile == ' ') {
+            worldMap.grid[cj.y][cj.x] = ' ';
+            cj.x = nextX;
+            cj.y = nextY;
+            carsArray[currentCarIndex].x = nextX;
+            carsArray[currentCarIndex].y = nextY;
+            worldMap.grid[cj.y][cj.x] = 'C';
+        }
+    }
+    else {
+        if (nextTile == ' ' || nextTile == '$') {
+            cj.x = nextX;
+            cj.y = nextY;
 
-        if (nextTile == '$') {
-            for (int i = 0; i < totalPeds; ++i) {
-                if (pedsArray[i].isDead && pedsArray[i].x == cj.x && pedsArray[i].y == cj.y) {
-                    cj.money += 1 + rand() % pedsArray[i].maxMoneyDrop;
-                    worldMap.grid[cj.y][cj.x] = ' ';
+            if (nextTile == '$') {
+                for (int i = 0; i < totalPeds; ++i) {
+                    if (pedsArray[i].isDead && pedsArray[i].x == cj.x && pedsArray[i].y == cj.y) {
+                        cj.money += 1 + rand() % pedsArray[i].maxMoneyDrop;
+                        worldMap.grid[cj.y][cj.x] = ' ';
 
-                    pedsArray[i].isDead = false;
-                    pedsArray[i].symbol = 'P';
-                    bool validPos = false;
-                    while (!validPos) {
-                        pedsArray[i].x = pedsArray[i].islandMinX + rand() % (pedsArray[i].islandMaxX - pedsArray[i].islandMinX + 1);
-                        pedsArray[i].y = 1 + rand() % (mapHeight - 2);
-                        if (worldMap.grid[pedsArray[i].y][pedsArray[i].x] == ' ' && !(pedsArray[i].x == cj.x && pedsArray[i].y == cj.y)) {
-                            validPos = true;
+                        pedsArray[i].isDead = false;
+                        pedsArray[i].symbol = 'P';
+                        bool validPos = false;
+                        while (!validPos) {
+                            pedsArray[i].x = pedsArray[i].islandMinX + rand() % (pedsArray[i].islandMaxX - pedsArray[i].islandMinX + 1);
+                            pedsArray[i].y = 1 + rand() % (mapHeight - 2);
+                            if (worldMap.grid[pedsArray[i].y][pedsArray[i].x] == ' ' && !(pedsArray[i].x == cj.x && pedsArray[i].y == cj.y)) {
+                                validPos = true;
+                            }
                         }
+                        worldMap.grid[pedsArray[i].y][pedsArray[i].x] = pedsArray[i].symbol;
                     }
-                    worldMap.grid[pedsArray[i].y][pedsArray[i].x] = pedsArray[i].symbol;
                 }
             }
         }
@@ -235,7 +300,12 @@ void Game::ProcessPlaying() {
 
     SetCursorPosition(0, 0);
     cout << "--- GTA: ENTI City Playing ---" << endl;
-    cout << "HP: " << cj.health << " | Money: $" << cj.money << " | Toll 1: $" << lsToll << "    " << endl;
+    if (isDriving) {
+        cout << "[ DRIVING CAR ] Use 'E' key to exit vehicle!    " << endl;
+    }
+    else {
+        cout << "HP: " << cj.health << " | Money: $" << cj.money << " | Toll 1: $" << lsToll << "    " << endl;
+    }
     cout << "-------------------------------" << endl;
     worldMap.Render(cj, viewWidth, viewHeight);
     cout << "-------------------------------" << endl;
@@ -313,6 +383,7 @@ void Game::Run() {
 void Game::Cleanup() {
     system("cls");
     delete[] pedsArray;
+	delete[] carsArray;
     worldMap.Destroy();
     cout << "\n[System] Exiting game..." << endl;
     cout << "[System] Memory cleaned successfully! No leaks!" << endl;
