@@ -11,4 +11,10 @@ struct Pedestrian {
 	int islandMaxX;
 	int health;
 	int attack;
+
+	int health;
+	int attack;
+	bool isAggressive;
+	bool isProvoked;
+	int attackCooldown;
 };

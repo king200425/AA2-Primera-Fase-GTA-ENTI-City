@@ -64,6 +64,10 @@ bool Game::LoadConfigAndInit() {
         pedsArray[i].symbol = 'P';
         pedsArray[i].isDead = false;
 
+		pedsArray[i].isAggressive = (rand() % 2 == 0);  // 50% chance to be aggressive
+		pedsArray[i].isProvoked = false;  // No están provocados al inicio
+		pedsArray[i].attackCooldown = 0;  // CD
+
         //Asignar diferentes atributos a los peatones según la isla
         if (i < lsPedestrians) {
             pedsArray[i].islandMinX = lsMinX;
@@ -234,11 +238,22 @@ void Game::ProcessPlaying() {
     if (!isDriving && (GetAsyncKeyState(VK_SPACE) & 0x8000)) {
         for (int i = 0; i < totalPeds; ++i) {
             if (!pedsArray[i].isDead && abs(pedsArray[i].x - cj.x) <= 1 && abs(pedsArray[i].y - cj.y) <= 1) {
-                pedsArray[i].isDead = true;
-                pedsArray[i].symbol = '$';
-                worldMap.grid[pedsArray[i].y][pedsArray[i].x] = '$';
+				
+				//Reducir salud del peatón
+                pedsArray[i].health -= cj.attack;
+                if (pedsArray[i].health <= 0) {
+					// Peatón muere, dinero
+                    pedsArray[i].isDead = true;
+                    pedsArray[i].symbol = '$';
+                    worldMap.grid[pedsArray[i].y][pedsArray[i].x] = '$';
+				}
+                else if (pedsArray[i].isAggressive) {
+					// Peatón agresivo es provocado
+                    pedsArray[i].isProvoked = true;
+                }
             }
         }
+        Sleep(150);
     }
 
     char nextTile = worldMap.grid[nextY][nextX];
@@ -281,8 +296,15 @@ void Game::ProcessPlaying() {
                         cj.money += 1 + rand() % pedsArray[i].maxMoneyDrop;
                         worldMap.grid[cj.y][cj.x] = ' ';
 
+						// Respawn the pedestrian in a new valid location
                         pedsArray[i].isDead = false;
                         pedsArray[i].symbol = 'P';
+                        pedsArray[i].isAggressive = (rand() % 2 == 0);
+						pedsArray[i].isProvoked = false;
+						pedsArray[i].attackCooldown = 0;
+
+						pedsArray[i].health = (pedsArray[i].islandMinX == 1) ? 100 : 150;
+
                         bool validPos = false;
                         while (!validPos) {
                             pedsArray[i].x = pedsArray[i].islandMinX + rand() % (pedsArray[i].islandMaxX - pedsArray[i].islandMinX + 1);
@@ -316,8 +338,30 @@ void Game::ProcessPlaying() {
 void Game::UpdateAI() {
     for (int i = 0; i < totalPeds; ++i) {
         if (pedsArray[i].isDead) continue;
-        if (abs(pedsArray[i].x - cj.x) <= 1 && abs(pedsArray[i].y - cj.y) <= 1) continue;
 
+		bool isNearCJ = (abs(pedsArray[i].x - cj.x) <= 1 && abs(pedsArray[i].y - cj.y) <= 1);
+
+        //Mecánica de contraataque
+        if (pedsArray[i].isProvoked && isNearCJ && !isDriving) {
+            if (pedsArray[i].attackCooldown <= 0) {
+                cj.health -= pedsArray[i].attack;
+                pedsArray[i].attackCooldown = 16;
+
+                // Game Over
+                if (cj.health <= 0) {
+                    currentState = GameState::GAME_OVER;
+                    timerCount = 0;
+                    system("cls");
+                    return;
+                }
+            }else {
+                pedsArray[i].attackCooldown--;
+            }
+            continue;
+        }
+
+        if (isNearCJ) continue;
+        
         if (rand() % 100 < 10) {
             int dir = rand() % 4;
             int nextPx = pedsArray[i].x;
@@ -348,7 +392,7 @@ void Game::ProcessGameOver() {
     cout << "               GAME OVER                " << endl;
     cout << "========================================" << endl;
     cout << "\n   [POLICE] You were arrested!        " << endl;
-    cout << "   Reason: Trying to cross toll without money! [cite: 186, 216]" << endl;
+    cout << "   Reason: Trying to cross toll without money!" << endl;
     cout << "\n   The game will close automatically... " << endl;
     cout << "========================================" << endl;
 
