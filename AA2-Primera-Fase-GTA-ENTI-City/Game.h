@@ -12,6 +12,10 @@ struct Game {
 	Pedestrian* pedsArray;
 	int totalPeds;
 
+	//Boss
+	Pedestrian bigSmoke;
+	bool isVictory;
+
 	// Car
 	Car* carsArray;
 	int totalCars;

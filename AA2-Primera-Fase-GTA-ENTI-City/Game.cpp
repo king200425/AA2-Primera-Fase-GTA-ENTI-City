@@ -97,6 +97,27 @@ bool Game::LoadConfigAndInit() {
         worldMap.grid[pedsArray[i].y][pedsArray[i].x] = pedsArray[i].symbol;
     }
 
+    //Boss
+    bigSmoke.symbol = 'B';
+    bigSmoke.isDead = false;
+    bigSmoke.health = 800;  //vida
+    bigSmoke.attack = 40;   //daño
+    bigSmoke.isAggressive = true;
+    bigSmoke.isProvoked = false;
+    bigSmoke.attackCooldown = 0;
+
+    bigSmoke.islandMinX = (mapWidth * 2) / 3 + 1;
+    bigSmoke.islandMaxX = mapWidth - 2;
+
+    bool validBsPos = false;
+    while (!validBsPos) {
+        bigSmoke.x = bigSmoke.islandMinX + rand() % (bigSmoke.islandMaxX - bigSmoke.islandMinX + 1);
+        bigSmoke.y = 1 + rand() % (mapHeight - 2);
+        if (worldMap.grid[bigSmoke.y][bigSmoke.x] == ' ') validBsPos = true;
+    }
+    worldMap.grid[bigSmoke.y][bigSmoke.x] = bigSmoke.symbol;
+
+
     //Cars
     totalCars = 3;
 	carsArray = new Car[totalCars];
@@ -120,6 +141,7 @@ bool Game::LoadConfigAndInit() {
     //No mober cars
 	isDriving = false;
 	currentCarIndex = -1;
+	isVictory = false;
 
 	// Initialize other game variables
     viewWidth = 15;
@@ -236,6 +258,7 @@ void Game::ProcessPlaying() {
 
     // Handle attack input
     if (!isDriving && (GetAsyncKeyState(VK_SPACE) & 0x8000)) {
+
         for (int i = 0; i < totalPeds; ++i) {
             if (!pedsArray[i].isDead && abs(pedsArray[i].x - cj.x) <= 1 && abs(pedsArray[i].y - cj.y) <= 1) {
 				
@@ -253,6 +276,26 @@ void Game::ProcessPlaying() {
                 }
             }
         }
+
+		// Atacar al Boss
+        if (!bigSmoke.isDead && abs(bigSmoke.x - cj.x) <= 1 && abs(bigSmoke.y - cj.y) <= 1) {
+            bigSmoke.health -= cj.attack;
+            if (bigSmoke.health <= 0) {
+                bigSmoke.isDead = true;
+                worldMap.grid[bigSmoke.y][bigSmoke.x] = ' ';
+
+                //Jefe derrotado, victoria
+                isVictory = true;
+                currentState = GameState::GAME_OVER;
+                timerCount = 0;
+                system("cls");
+                return;
+            }
+            else {
+                bigSmoke.isProvoked = true;
+            }
+        }
+
         Sleep(150);
     }
 
@@ -268,6 +311,7 @@ void Game::ProcessPlaying() {
             nextTile = ' ';
         }
         else {
+			isVictory = false;
             currentState = GameState::GAME_OVER;
             timerCount = 0;
             system("cls");
@@ -383,16 +427,70 @@ void Game::UpdateAI() {
             }
         }
     }
+
+	// Boss AI
+    if (!bigSmoke.isDead) {
+        bool bsNearCJ = (abs(bigSmoke.x - cj.x) <= 1 && abs(bigSmoke.y - cj.y) <= 1);
+
+        if (bigSmoke.isProvoked && bsNearCJ && !isDriving) {
+            if (bigSmoke.attackCooldown <= 0) {
+                cj.health -= bigSmoke.attack;
+                bigSmoke.attackCooldown = 16;
+
+                if (cj.health <= 0) {
+                    isVictory = false;
+                    currentState = GameState::GAME_OVER;
+                    timerCount = 0;
+                    system("cls");
+                    return;
+                }
+            }
+            else {
+                bigSmoke.attackCooldown--;
+            }
+        }
+        else if (!bsNearCJ) {
+            if (rand() % 100 < 10) {
+                int dir = rand() % 4;
+                int nextPx = bigSmoke.x;
+                int nextPy = bigSmoke.y;
+
+                if (dir == 0) nextPy--;
+                else if (dir == 1) nextPy++;
+                else if (dir == 2) nextPx--;
+                else if (dir == 3) nextPx++;
+
+                if (nextPx >= bigSmoke.islandMinX && nextPx <= bigSmoke.islandMaxX) {
+                    if (worldMap.grid[nextPy][nextPx] == ' ') {
+                        worldMap.grid[bigSmoke.y][bigSmoke.x] = ' ';
+                        bigSmoke.x = nextPx;
+                        bigSmoke.y = nextPy;
+                        worldMap.grid[bigSmoke.y][bigSmoke.x] = 'B';
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Process game over screen and auto-exit after a delay
 void Game::ProcessGameOver() {
     SetCursorPosition(0, 0);
     cout << "========================================" << endl;
-    cout << "               GAME OVER                " << endl;
-    cout << "========================================" << endl;
-    cout << "\n   [POLICE] You were arrested!        " << endl;
-    cout << "   Reason: Trying to cross toll without money!" << endl;
+    if (isVictory) {
+        cout << "           [ MISSION PASSED ]           " << endl;
+        cout << "             RESPECT +++                " << endl;
+        cout << "========================================" << endl;
+        cout << "\n   Big Smoke was defeated!            " << endl;
+        cout << "   You got the money back! CJ is rich!" << endl;
+    }
+    else {
+        cout << "           [ MISSION FAILED ]           " << endl;
+        cout << "             WASTED / BUSTED            " << endl;
+        cout << "========================================" << endl;
+        cout << "\n   Reason: Arrested by Police OR      " << endl;
+        cout << "           Killed in Combat.            " << endl;
+    }
     cout << "\n   The game will close automatically... " << endl;
     cout << "========================================" << endl;
 
